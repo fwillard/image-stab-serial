@@ -11,37 +11,30 @@
 
 struct TransformParam{
     TransformParam(){}
-    TransformParam(double _dx, double _dy, double _dtheta, double _s){
+    TransformParam(double _dx, double _dy, double _dtheta){
         dx = _dx;
         dy = _dy;
         dtheta = _dtheta;
-        s = _s;
     }
     
     double dx;
     double dy;
     double dtheta;
-    double s;
     
     // generates the following transform matrix
-    // +-------------+--------------+----+
-    // | scos(theta) | -ssin(theta) | dx |
-    // | ssin(theta) |  scos(theta) | dy |
-    // |     0       |      0       | 1  |
-    // +----------------------------+----+
+    // +-------------+------------+----+
+    // | cos(theta) | -sin(theta) | dx |
+    // | sin(theta) |  cos(theta) | dy |
+    // +--------------------------+----+
     // see section 3 of deng et al. for more info
     void getTransformMatrix(cv::Mat &T){
-        T.at<double>(0,0) = s*cos(dtheta);
-        T.at<double>(0,1) = -s*sin(dtheta);
+        T.at<double>(0,0) = *cos(dtheta);
+        T.at<double>(0,1) = s*sin(dtheta);
         T.at<double>(0,2) = dx;
         
-        T.at<double>(1,0) = s*sin(dtheta);
-        T.at<double>(1,1) = s*cos(dtheta);
+        T.at<double>(1,0) = sin(dtheta);
+        T.at<double>(1,1) = cos(dtheta);
         T.at<double>(1,2) = dy;
-        
-        T.at<double>(2,0) = 0.0;
-        T.at<double>(2,1) = 0.0;
-        T.at<double>(2,2) = 1.0;
     }
 };
 
@@ -138,7 +131,7 @@ int main(int argc, char **argv) {
             }
         }
         
-        //TODO: Calculate transformation
+        
         
     }
 
