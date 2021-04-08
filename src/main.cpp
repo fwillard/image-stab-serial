@@ -28,8 +28,8 @@ struct TransformParam{
     // +--------------------------+----+
     // see section 3 of deng et al. for more info
     void getTransformMatrix(cv::Mat &T){
-        T.at<double>(0,0) = *cos(dtheta);
-        T.at<double>(0,1) = s*sin(dtheta);
+        T.at<double>(0,0) = cos(dtheta);
+        T.at<double>(0,1) = sin(dtheta);
         T.at<double>(0,2) = dx;
         
         T.at<double>(1,0) = sin(dtheta);
