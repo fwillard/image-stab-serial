@@ -11,30 +11,37 @@
 
 struct TransformParam{
     TransformParam(){}
-    TransformParam(double _dx, double _dy, double _dtheta){
+    TransformParam(double _dx, double _dy, double _dtheta, double _s){
         dx = _dx;
         dy = _dy;
         dtheta = _dtheta;
+        s = _s;
     }
     
     double dx;
     double dy;
     double dtheta;
+    double s;
     
     // generates the following transform matrix
     // +-------------+------------+----+
     // | cos(theta) | -sin(theta) | dx |
     // | sin(theta) |  cos(theta) | dy |
+    // |    0       |     0       | 1  |
     // +--------------------------+----+
     // see section 3 of deng et al. for more info
     void getTransformMatrix(cv::Mat &T){
-        T.at<double>(0,0) = cos(dtheta);
-        T.at<double>(0,1) = sin(dtheta);
+        T.at<double>(0,0) = s*cos(dtheta);
+        T.at<double>(0,1) = -s*sin(dtheta);
         T.at<double>(0,2) = dx;
         
-        T.at<double>(1,0) = sin(dtheta);
-        T.at<double>(1,1) = cos(dtheta);
+        T.at<double>(1,0) = s*sin(dtheta);
+        T.at<double>(1,1) = s*cos(dtheta);
         T.at<double>(1,2) = dy;
+        
+        T.at<double>(2,0) = 0.0;
+        T.at<double>(2,1) = 0.0;
+        T.at<double>(2,2) = 1.0;
     }
 };
 
@@ -98,6 +105,8 @@ int main(int argc, char **argv) {
     //vector to hold the transformations
     std::vector<TransformParam> transforms;
     
+    cv::Mat last_T;
+    
     for(int i = 1; i < frame_count - 1; i++){
         std::vector<cv::Point> old_points, new_points;
         
@@ -131,7 +140,8 @@ int main(int argc, char **argv) {
             }
         }
         
-        
+        //estimate affine transformation
+        cv::Mat T = cv::estimateAffinePartial2D();
         
     }
 
