@@ -5,111 +5,142 @@
 #include <opencv2/video.hpp>
 #include <opencv2/videoio.hpp>
 
-static void help(){
-    std::cout << "usage: ImageStab video_file" << std::endl;
-}
+#define TRACK_POINTS 100
+#define QUALITY_LEVEL 0.3
+#define MIN_DISTANCE 7
+
+struct TransformParam{
+    TransformParam(){}
+    TransformParam(double _dx, double _dy, double _dtheta, double _s){
+        dx = _dx;
+        dy = _dy;
+        dtheta = _dtheta;
+        s = _s;
+    }
+    
+    double dx;
+    double dy;
+    double dtheta;
+    double s;
+    
+    // generates the following transform matrix
+    // +-------------+--------------+----+
+    // | scos(theta) | -ssin(theta) | dx |
+    // | ssin(theta) |  scos(theta) | dy |
+    // |     0       |      0       | 1  |
+    // +----------------------------+----+
+    // see section 3 of deng et al. for more info
+    void getTransformMatrix(cv::Mat &T){
+        T.at<double>(0,0) = s*cos(dtheta);
+        T.at<double>(0,1) = -s*sin(dtheta);
+        T.at<double>(0,2) = dx;
+        
+        T.at<double>(1,0) = s*sin(dtheta);
+        T.at<double>(1,1) = s*cos(dtheta);
+        T.at<double>(1,2) = dy;
+        
+        T.at<double>(2,0) = 0.0;
+        T.at<double>(2,1) = 0.0;
+        T.at<double>(2,2) = 1.0;
+    }
+};
+
 int main(int argc, char **argv) {
     // parser keys
-    std::string keys =  "{help h usage ? |      | print this message     }"
-                        "{@video         |      | video to be stabilized }";
+    std::string keys =  "{help h usage ? |      | print this message           }"
+                        "{@input         |      | input video to be stabilized }"
+                        "{@output        |      | output video file            }"
+                        "{jitter j       |      | apply jitter to video        }";
     
     cv::CommandLineParser parser(argc, argv, keys);
     parser.about("Serial Image Stabilization v1.0");
     
     // if parser contains help flag, display usage then exit
     if (parser.has("help")) {
-        help();
+        parser.printMessage();
         return 0;
     }
     
-    // get the video file name from the parser
-    std::string filename = cv::samples::findFile(parser.get<std::string>("@video"));
+    // get the input video file name from the parser
+    std::string input_file = cv::samples::findFile(parser.get<std::string>("@input"));
     if (!parser.check()) {
         parser.printErrors();
         return 0;
     }
     
-    cv::VideoCapture capture(filename);
-    if (!capture.isOpened()) {
-        // error in opening the video
-        std::cerr << "Unable to open file!" << std::endl;
+    // get the output video file name from the parser
+    std::string output_file = cv::samples::findFile(parser.get<std::string>("@output"));
+    if (!parser.check()) {
+        parser.printErrors();
         return 0;
     }
-
     
-    std::vector<cv::Scalar> colors;
-    cv::RNG rng;
-    for (auto i = 0; i < 100; i++) {
-        auto r = rng.uniform(0, 256);
-        auto g = rng.uniform(0, 256);
-        auto b = rng.uniform(0, 256);
-        
-        colors.push_back(cv::Scalar(r,g,b));
+    //open input file
+    cv::VideoCapture capture(input_file);
+    if (!capture.isOpened()) {
+        // error in opening the video
+        std::cerr << "Unable to open input file!" << std::endl;
+        return 0;
     }
+    
+    //get input video properties
+    int frame_count = int(capture.get(cv::CAP_PROP_FRAME_COUNT));
+    int width = int(capture.get(cv::CAP_PROP_FRAME_WIDTH));
+    int height = int(capture.get(cv::CAP_PROP_FRAME_HEIGHT));
+    double fps = capture.get(cv::CAP_PROP_FPS);
+    int fourcc = int(capture.get(cv::CAP_PROP_FOURCC));
+    
+    //set up output writer
+    cv::VideoWriter out(output_file, fourcc, fps, cv::Size(2 * width, height));
     
     cv::Mat old_frame, old_gray;
-    std::vector<cv::Point2f> p0, p1;
-
-    // Read first frame and find corners in it
+    cv::Mat frame, frame_gray;
+    
+    // Read first frame and convert to grayscale
     capture >> old_frame;
     cvtColor(old_frame, old_gray, cv::COLOR_BGR2GRAY);
-    goodFeaturesToTrack(old_gray, p0, 100, 0.3, 7, cv::Mat(), 7, false, 0.04);
-
-    // Create a mask image for drawing purposes
-    cv::Mat mask = cv::Mat::zeros(old_frame.size(), old_frame.type());
     
-    bool save = false;
-    int counter = 0;
-    while(true){
-        //read new frame
-        cv::Mat frame, frame_gray;
-        capture >> frame;
+    
+    
+    //vector to hold the transformations
+    std::vector<TransformParam> transforms;
+    
+    for(int i = 1; i < frame_count - 1; i++){
+        std::vector<cv::Point> old_points, new_points;
         
-        if(frame.empty()){
-            break;;
+        //get tracking points from old frame;
+        goodFeaturesToTrack(old_gray, old_points, TRACK_POINTS, QUALITY_LEVEL, MIN_DISTANCE);
+        
+        //read next frame, break if failure
+        if(!capture.read(frame)){
+            break;
         }
         
+        //convert to grayscale
         cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
         
-        std::vector<uchar> status;
-        std::vector<float> err;
-        //define our termination criteria for the LK algorithm
-        //here we are using iteration count + epsilon value
-        //count = 10, eps = 0.03
-        cv::TermCriteria criteria = cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 10, 0.03);
-        
         //calculate optical flow
-        calcOpticalFlowPyrLK(old_gray, frame_gray, p0, p1, status, err, cv::Size(15, 15), 2, criteria);
+        std::vector<unsigned char> status;
+        std::vector<float> err;
+        cv::calcOpticalFlowPyrLK(old_gray, frame_gray, old_points, new_points, status, err);
         
-        std::vector<cv::Point2f> good_new;
-        // Visualization part
-        for(uint i = 0; i < p0.size(); i++)
-        {
-            // Select good points
-            if(status[i] == 1) {
-                good_new.push_back(p1[i]);
-                // Draw the tracks
-                line(mask,p1[i], p0[i], colors[i], 2);
-                circle(frame, p1[i], 5, colors[i], -1);
+        //eliminate invalid points
+        auto old_it = old_points.begin();
+        auto new_it = new_points.begin();
+        for(auto j = 0; j < status.size(); j++){
+            if(status[j] == 1){
+                old_it++;
+                new_it++;
+            }
+            else{
+                old_it = old_points.erase(old_it);
+                new_it = new_points.erase(new_it);
             }
         }
-
-        // Display the demo
-        cv::Mat img;
-        add(frame, mask, img);
-        if (save) {
-            std::string save_path = "./optical_flow_frames/frame_" + std::to_string(counter) + ".jpg";
-            imwrite(save_path, img);
-        }
-        imshow("flow", img);
-        int keyboard = cv::waitKey(25);
-        if (keyboard == 'q' || keyboard == 27)
-            break;
-
-        // Update the previous frame and previous points
-        old_gray = frame_gray.clone();
-        p0 = good_new;
-        counter++;
+        
+        //TODO: Calculate transformation
+        
     }
+
     return 0;
 }
