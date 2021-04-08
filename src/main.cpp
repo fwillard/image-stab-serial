@@ -4,44 +4,88 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/video.hpp>
 #include <opencv2/videoio.hpp>
+#include <opencv2/calib3d.hpp>
 
 #define TRACK_POINTS 100
 #define QUALITY_LEVEL 0.3
 #define MIN_DISTANCE 7
 
+std::string type2str(int type) {
+  std::string r;
+
+  uchar depth = type & CV_MAT_DEPTH_MASK;
+  uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+  switch ( depth ) {
+    case CV_8U:  r = "8U"; break;
+    case CV_8S:  r = "8S"; break;
+    case CV_16U: r = "16U"; break;
+    case CV_16S: r = "16S"; break;
+    case CV_32S: r = "32S"; break;
+    case CV_32F: r = "32F"; break;
+    case CV_64F: r = "64F"; break;
+    default:     r = "User"; break;
+  }
+
+  r += "C";
+  r += (chans+'0');
+
+  return r;
+}
+
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
 struct TransformParam{
     TransformParam(){}
-    TransformParam(double _dx, double _dy, double _dtheta, double _s){
-        dx = _dx;
-        dy = _dy;
-        dtheta = _dtheta;
-        s = _s;
+    //constructor for decomposing the affine2d transform matix into parameters
+    TransformParam(cv::Mat T){
+        //ensure matrix is correct size
+        assert(T.rows == 2);
+        assert(T.cols == 3);
+        
+        
+        dx = T.at<double>(0,2);
+        dy = T.at<double>(1,2);
+        
+        double a = T.at<double>(0,0);
+        double b = T.at<double>(0,1);
+        double c = T.at<double>(1,0);
+        double d = T.at<double>(1,1);
+        
+        s_x = sgn(a) * sqrt(pow(a, 2) + pow(b, 2));
+        s_y = sgn(d) * sqrt(pow(c, 2) + pow(d, 2));
+        
+        dtheta = atan2(-b, a);
     }
     
     double dx;
     double dy;
     double dtheta;
-    double s;
+    double s_x;
+    double s_y;
     
-    // generates the following transform matrix
-    // +-------------+------------+----+
-    // | cos(theta) | -sin(theta) | dx |
-    // | sin(theta) |  cos(theta) | dy |
-    // |    0       |     0       | 1  |
-    // +--------------------------+----+
-    // see section 3 of deng et al. for more info
-    void getTransformMatrix(cv::Mat &T){
-        T.at<double>(0,0) = s*cos(dtheta);
-        T.at<double>(0,1) = -s*sin(dtheta);
+    // returns the following transform matrix
+    // +----------------+-----------------+----+
+    // | s_x*cos(theta) | -s_x*sin(theta) | dx |
+    // | s_y*sin(theta) |  s_y*cos(theta) | dy |
+    // |    0           |     0           | 1  |
+    // +----------------+-----------------+----+
+    cv::Mat getTransformMatrix(){
+        cv::Mat T = cv::Mat::zeros(3, 3, CV_64F);
+        T.at<double>(0,0) = s_x*cos(dtheta);
+        T.at<double>(0,1) = -s_x*sin(dtheta);
         T.at<double>(0,2) = dx;
         
-        T.at<double>(1,0) = s*sin(dtheta);
-        T.at<double>(1,1) = s*cos(dtheta);
+        T.at<double>(1,0) = s_y*sin(dtheta);
+        T.at<double>(1,1) = s_y*cos(dtheta);
         T.at<double>(1,2) = dy;
         
         T.at<double>(2,0) = 0.0;
         T.at<double>(2,1) = 0.0;
         T.at<double>(2,2) = 1.0;
+        return T;
     }
 };
 
@@ -108,7 +152,7 @@ int main(int argc, char **argv) {
     cv::Mat last_T;
     
     for(int i = 1; i < frame_count - 1; i++){
-        std::vector<cv::Point> old_points, new_points;
+        std::vector<cv::Point2f> old_points, new_points;
         
         //get tracking points from old frame;
         goodFeaturesToTrack(old_gray, old_points, TRACK_POINTS, QUALITY_LEVEL, MIN_DISTANCE);
@@ -141,8 +185,9 @@ int main(int argc, char **argv) {
         }
         
         //estimate affine transformation
-        cv::Mat T = cv::estimateAffinePartial2D();
+        cv::Mat T = cv::estimateAffine2D(old_points, new_points);
         
+        TransformParam p(T);
     }
 
     return 0;
