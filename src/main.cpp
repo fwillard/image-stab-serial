@@ -6,40 +6,23 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/calib3d.hpp>
 
+#include "util.hpp"
+
 #define TRACK_POINTS 100
 #define QUALITY_LEVEL 0.3
 #define MIN_DISTANCE 7
 
-std::string type2str(int type) {
-  std::string r;
-
-  uchar depth = type & CV_MAT_DEPTH_MASK;
-  uchar chans = 1 + (type >> CV_CN_SHIFT);
-
-  switch ( depth ) {
-    case CV_8U:  r = "8U"; break;
-    case CV_8S:  r = "8S"; break;
-    case CV_16U: r = "16U"; break;
-    case CV_16S: r = "16S"; break;
-    case CV_32S: r = "32S"; break;
-    case CV_32F: r = "32F"; break;
-    case CV_64F: r = "64F"; break;
-    default:     r = "User"; break;
-  }
-
-  r += "C";
-  r += (chans+'0');
-
-  return r;
-}
-
-template <typename T> int sgn(T val) {
-    return (T(0) < val) - (val < T(0));
-}
 
 struct TransformParam{
     TransformParam(){}
-    //constructor for decomposing the affine2d transform matix into parameters
+    
+    // given the following affine2d transform matrix form
+    // +-------+-------+--------+
+    // |   a   |   b   |   dx   |
+    // |   c   |   d   |   dy   |
+    // +-------+-------+--------+
+    // this constructor decomposes the matrix into the components
+    // dx, dy, s_x, s_y, and dtheta
     TransformParam(cv::Mat T){
         //ensure matrix is correct size
         assert(T.rows == 2);
@@ -187,7 +170,9 @@ int main(int argc, char **argv) {
         //estimate affine transformation
         cv::Mat T = cv::estimateAffine2D(old_points, new_points);
         
-        TransformParam p(T);
+        transforms.push_back(TransformParam(T));
+        
+        std::cout << "Frame: " << i << "/" << frame_count << " -  Tracked points : " << old_points.size() << std::endl;
     }
 
     return 0;
