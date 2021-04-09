@@ -9,11 +9,27 @@
 #define util_hpp
 
 #include <stdio.h>
+#include <opencv2/core.hpp>
 
-template <typename T> int sgn(T val) {
+//constants for kalman filter
+const cv::Mat A = (cv::Mat_<double>(6,6) << 1, 0, 0, 1, 0, 0,
+                                            0, 1, 0, 0, 1, 0,
+                                            0, 0, 1, 0, 0, 1,
+                                            0, 0, 0, 1, 0, 0,
+                                            0, 0, 0, 0, 1, 0,
+                                            0, 0, 0, 0, 0, 1);
+
+const cv::Mat H = (cv::Mat_<double>(3,6) << 1, 0, 0, 0, 0, 0,
+                                            0, 1, 0, 0, 0, 0,
+                                            0, 0, 1, 0, 0, 0);
+
+//signum function
+template <typename T>
+int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
+//convert openCV Mat.type() to human readable string
 std::string type2str(int type) {
   std::string r;
 

@@ -73,6 +73,9 @@ struct TransformParam{
 };
 
 int main(int argc, char **argv) {
+    std::cout << cv::format(A, cv::Formatter::FMT_DEFAULT) << std::endl;
+    
+    std::cout << cv::format(H, cv::Formatter::FMT_DEFAULT) << std::endl; 
     // parser keys
     std::string keys =  "{help h usage ? |      | print this message           }"
                         "{@input         |      | input video to be stabilized }"
