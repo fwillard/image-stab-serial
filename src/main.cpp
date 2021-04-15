@@ -11,7 +11,12 @@
 #define TRACK_POINTS 100
 #define QUALITY_LEVEL 0.3
 #define MIN_DISTANCE 7
-
+typedef enum AlgoType{
+    PYRLK      = 0,
+    SIFT       = 1,
+    PYRLK_CUDA = 2,
+    SIFT_CUDA  = 3
+} AlgoType;
 
 struct TransformParam{
     TransformParam(){}
@@ -72,15 +77,41 @@ struct TransformParam{
     }
 };
 
-int main(int argc, char **argv) {
-    std::cout << cv::format(A, cv::Formatter::FMT_DEFAULT) << std::endl;
+void launch_optical(std::vector<cv::Point2f> old_points){
     
-    std::cout << cv::format(H, cv::Formatter::FMT_DEFAULT) << std::endl; 
+}
+
+void track_points(std::vector<cv::Point2f> old_points, std::vector<cv::Point2f> &new_points, AlgoType algo){
+    switch (algo) {
+        case PYRLK:
+            return launch_optical(old_points);
+            break;
+//        case SIFT:
+//            return launch_sift();
+//            break;
+//        case PYRLK_CUDA:
+//            return launch_optical_cuda();
+//            break;
+//        case SIFT_CUDA:
+//            return launch_sift_cuda();
+//            break;
+//
+        default:
+            break;
+    }
+}
+
+int main(int argc, char **argv) {
     // parser keys
-    std::string keys =  "{help h usage ? |      | print this message           }"
-                        "{@input         |      | input video to be stabilized }"
-                        "{@output        |      | output video file            }"
-                        "{jitter j       |      | apply jitter to video        }";
+    std::string keys =  "{help h usage ? |      | print this message                    }"
+                        "{@input         |      | input video to be stabilized          }"
+                        "{@output        |      | output video file                     }"
+                        "{jitter j       |      | apply jitter to video                 }"
+                        "{algorithm a    |  0   | the algorithm to use for stabilization\n"
+                                         "          0 for Serial Lucas-Kannade Optical Flow (default)\n"
+                                         "          1 for Serial SIFT\n"
+                                         "          2 for CUDA Lucas-Kannade Optical Flow\n"
+                                         "          3 for CUDA SIFT}";
     
     cv::CommandLineParser parser(argc, argv, keys);
     parser.about("Serial Image Stabilization v1.0");
@@ -88,21 +119,46 @@ int main(int argc, char **argv) {
     // if parser contains help flag, display usage then exit
     if (parser.has("help")) {
         parser.printMessage();
-        return 0;
+        return -1;
     }
     
     // get the input video file name from the parser
     std::string input_file = cv::samples::findFile(parser.get<std::string>("@input"));
     if (!parser.check()) {
         parser.printErrors();
-        return 0;
+        return -1;
     }
     
     // get the output video file name from the parser
     std::string output_file = cv::samples::findFile(parser.get<std::string>("@output"));
     if (!parser.check()) {
         parser.printErrors();
-        return 0;
+        return -1;
+    }
+    
+    //get the stabilization algorithm
+    const int cl_arg = parser.get<int>("algorithm");
+    if (!parser.check()) {
+        parser.printErrors();
+        return -1;
+    }
+    AlgoType algo;
+    switch (cl_arg) {
+        case 0:
+            algo = PYRLK;
+            break;
+        case 1:
+            algo = SIFT;
+            break;
+        case 2:
+            algo = PYRLK_CUDA;
+            break;
+        case 3:
+            algo = SIFT_CUDA;
+            break;
+        default:
+            std::cerr << "Invalid value for algorithm flag" << std::endl;
+            return -1;
     }
     
     //open input file
@@ -110,7 +166,7 @@ int main(int argc, char **argv) {
     if (!capture.isOpened()) {
         // error in opening the video
         std::cerr << "Unable to open input file!" << std::endl;
-        return 0;
+        return -1;
     }
     
     //get input video properties
@@ -175,7 +231,7 @@ int main(int argc, char **argv) {
         
         transforms.push_back(TransformParam(T));
         
-        std::cout << "Frame: " << i << "/" << frame_count << " -  Tracked points : " << old_points.size() << std::endl;
+//        std::cout << "Frame: " << i << "/" << frame_count << " -  Tracked points : " << old_points.size() << std::endl;
     }
 
     return 0;
