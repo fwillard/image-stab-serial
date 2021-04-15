@@ -5,6 +5,7 @@
 #include <opencv2/video.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/calib3d.hpp>
+#include <chrono>
 
 #include "util.hpp"
 
@@ -127,7 +128,6 @@ static void optical_flow(cv::VideoCapture &capture, int frame_count) {
         
         transforms.push_back(TransformParam(T));
         
-        std::cout << "Frame: " << i << "/" << frame_count << " -  Tracked points : " << old_points.size() << std::endl;
     }
 }
 
@@ -265,7 +265,12 @@ int main(int argc, char **argv) {
     //set up output writer
     cv::VideoWriter out(output_file, fourcc, fps, cv::Size(2 * width, height));
     
+    auto start = std::chrono::high_resolution_clock::now();
     sift(capture, frame_count);
+    auto stop = std::chrono::high_resolution_clock::now();
+    
+    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout <<"Exec time (ms): " << diff.count() << std::endl;
 
     return 0;
 }
