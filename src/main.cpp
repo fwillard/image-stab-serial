@@ -77,27 +77,113 @@ struct TransformParam{
     }
 };
 
-void launch_optical(std::vector<cv::Point2f> old_points){
+static void optical_flow(cv::VideoCapture &capture, int frame_count) {
+    cv::Mat old_frame, old_gray;
+    cv::Mat frame, frame_gray;
     
+    // Read first frame and convert to grayscale
+    capture >> old_frame;
+    cvtColor(old_frame, old_gray, cv::COLOR_BGR2GRAY);
+    
+    std::vector<TransformParam> transforms;
+    
+    cv::Mat last_T;
+    
+    for(int i = 1; i < frame_count - 1; i++){
+        std::vector<cv::Point2f> old_points, new_points;
+        
+        //get tracking points from old frame;
+        goodFeaturesToTrack(old_gray, old_points, TRACK_POINTS, QUALITY_LEVEL, MIN_DISTANCE);
+        
+        //read next frame, break if failure
+        if(!capture.read(frame)){
+            break;
+        }
+        
+        //convert to grayscale
+        cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
+        
+        //calculate optical flow
+        std::vector<unsigned char> status;
+        std::vector<float> err;
+        cv::calcOpticalFlowPyrLK(old_gray, frame_gray, old_points, new_points, status, err);
+        
+        //eliminate invalid points
+        auto old_it = old_points.begin();
+        auto new_it = new_points.begin();
+        for(auto j = 0; j < status.size(); j++){
+            if(status[j] == 1){
+                old_it++;
+                new_it++;
+            }
+            else{
+                old_it = old_points.erase(old_it);
+                new_it = new_points.erase(new_it);
+            }
+        }
+        
+        //estimate affine transformation
+        cv::Mat T = cv::estimateAffine2D(old_points, new_points);
+        
+        transforms.push_back(TransformParam(T));
+        
+        std::cout << "Frame: " << i << "/" << frame_count << " -  Tracked points : " << old_points.size() << std::endl;
+    }
 }
 
-void track_points(std::vector<cv::Point2f> old_points, std::vector<cv::Point2f> &new_points, AlgoType algo){
-    switch (algo) {
-        case PYRLK:
-            return launch_optical(old_points);
+static void sift(cv::VideoCapture &capture, int frame_count) {
+    cv::Mat old_frame, old_gray;
+    cv::Mat frame, frame_gray;
+    
+    // Read first frame and convert to grayscale
+    capture >> old_frame;
+    cvtColor(old_frame, old_gray, cv::COLOR_BGR2GRAY);
+    
+    std::vector<TransformParam> transforms;
+    
+    cv::Mat last_T;
+    //create sift keypoint detector
+    cv::Ptr<cv::SIFT> sift = cv::SIFT::create();
+    //create brute force matcher
+    cv::BFMatcher matcher = cv::BFMatcher();
+    
+    for(int i = 1; i < frame_count - 1; i++){
+        std::vector<cv::KeyPoint> old_points, new_points;
+        cv::Mat old_descriptors, new_descriptors;
+        
+        //read next frame, break if failure
+        if(!capture.read(frame)){
             break;
-//        case SIFT:
-//            return launch_sift();
-//            break;
-//        case PYRLK_CUDA:
-//            return launch_optical_cuda();
-//            break;
-//        case SIFT_CUDA:
-//            return launch_sift_cuda();
-//            break;
-//
-        default:
-            break;
+        }
+        
+        //convert to grayscale
+        cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
+        
+        //detect keypoints
+        sift->detectAndCompute(old_gray, cv::Mat(), old_points, old_descriptors);
+        sift->detectAndCompute(frame_gray, cv::Mat(), new_points, new_descriptors);
+        
+        
+        //match points
+        std::vector<cv::DMatch> matches;
+        matcher.match(old_descriptors, new_descriptors, matches);
+        
+        //sort by distance
+        std::sort(matches.begin(), matches.end());
+        
+        std::vector<cv::Point2f> p0, p1;
+        
+        //get the best N points for affine estimation
+        for(int j = 0; j < TRACK_POINTS; j++){
+            p0.push_back(old_points[matches[j].queryIdx].pt);
+            p1.push_back(new_points[matches[j].trainIdx].pt);
+        }
+        
+        //estimate affine transformation
+        cv::Mat T = cv::estimateAffine2D(p0, p1);
+        
+        transforms.push_back(TransformParam(T));
+
     }
 }
 
@@ -179,60 +265,7 @@ int main(int argc, char **argv) {
     //set up output writer
     cv::VideoWriter out(output_file, fourcc, fps, cv::Size(2 * width, height));
     
-    cv::Mat old_frame, old_gray;
-    cv::Mat frame, frame_gray;
-    
-    // Read first frame and convert to grayscale
-    capture >> old_frame;
-    cvtColor(old_frame, old_gray, cv::COLOR_BGR2GRAY);
-    
-    
-    
-    //vector to hold the transformations
-    std::vector<TransformParam> transforms;
-    
-    cv::Mat last_T;
-    
-    for(int i = 1; i < frame_count - 1; i++){
-        std::vector<cv::Point2f> old_points, new_points;
-        
-        //get tracking points from old frame;
-        goodFeaturesToTrack(old_gray, old_points, TRACK_POINTS, QUALITY_LEVEL, MIN_DISTANCE);
-        
-        //read next frame, break if failure
-        if(!capture.read(frame)){
-            break;
-        }
-        
-        //convert to grayscale
-        cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
-        
-        //calculate optical flow
-        std::vector<unsigned char> status;
-        std::vector<float> err;
-        cv::calcOpticalFlowPyrLK(old_gray, frame_gray, old_points, new_points, status, err);
-        
-        //eliminate invalid points
-        auto old_it = old_points.begin();
-        auto new_it = new_points.begin();
-        for(auto j = 0; j < status.size(); j++){
-            if(status[j] == 1){
-                old_it++;
-                new_it++;
-            }
-            else{
-                old_it = old_points.erase(old_it);
-                new_it = new_points.erase(new_it);
-            }
-        }
-        
-        //estimate affine transformation
-        cv::Mat T = cv::estimateAffine2D(old_points, new_points);
-        
-        transforms.push_back(TransformParam(T));
-        
-//        std::cout << "Frame: " << i << "/" << frame_count << " -  Tracked points : " << old_points.size() << std::endl;
-    }
+    sift(capture, frame_count);
 
     return 0;
 }
