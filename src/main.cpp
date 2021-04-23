@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include "util.hpp"
+#include "tracking.hpp"
 
 #define TRACK_POINTS 100
 #define QUALITY_LEVEL 0.3
@@ -86,6 +87,12 @@ static void optical_flow(cv::VideoCapture &capture, int frame_count) {
     capture >> old_frame;
     cvtColor(old_frame, old_gray, cv::COLOR_BGR2GRAY);
     
+    cv::Mat blurred = gaussian_blur(old_gray, gaussian_kernel);
+    cv::Mat combined;
+    cv::hconcat(old_gray, blurred, combined);
+    cv::imshow("", combined);
+    cv::waitKey(0);
+    
     std::vector<TransformParam> transforms;
     
     cv::Mat last_T;
@@ -107,7 +114,9 @@ static void optical_flow(cv::VideoCapture &capture, int frame_count) {
         //calculate optical flow
         std::vector<unsigned char> status;
         std::vector<float> err;
-        cv::calcOpticalFlowPyrLK(old_gray, frame_gray, old_points, new_points, status, err);
+//        cv::calcOpticalFlowPyrLK(old_gray, frame_gray, old_points, new_points, status, err);
+        lucas_kanade(old_gray, frame_gray, old_points, new_points);
+        
         
         //eliminate invalid points
         auto old_it = old_points.begin();
@@ -266,7 +275,7 @@ int main(int argc, char **argv) {
     cv::VideoWriter out(output_file, fourcc, fps, cv::Size(2 * width, height));
     
     auto start = std::chrono::high_resolution_clock::now();
-    sift(capture, frame_count);
+    optical_flow(capture, frame_count);
     auto stop = std::chrono::high_resolution_clock::now();
     
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
