@@ -31,17 +31,41 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
     
 }
 
-std::tuple<cv::Mat, cv::Mat, cv::Mat> construct_gaussian_pyramid(){
+std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat in, int levels){
+    std::vector<cv::Mat> out;
+    cv::Mat temp, temp_old;
+    temp = in;
+    out.push_back(temp);
+    for (int i = 0; i < levels - 1; i++) {
+        temp = gaussian_blur(temp);
+        temp = sub_sample(temp);
+        out.push_back(temp);
+    }
+
     
+    return out;
 }
 
-cv::Mat gaussian_blur(cv::Mat in, cv::Mat filter){
-    
-    std::cout << filter << std::endl;
+cv::Mat sub_sample(cv::Mat in){
     int num_rows = in.rows;
     int num_cols = in.cols;
-    int filter_rows = filter.rows;
-    int filter_cols = filter.cols;
+    cv::Mat out = cv::Mat::zeros(num_rows/2, num_cols/2, in.type());
+    
+    for(int i = 0; i < num_rows; i += 2){
+        for(int j = 0; j < num_cols; j += 2){
+            out.at<uchar>(i/2, j/2) = in.at<uchar>(i, j);
+        }
+    }
+    
+    return out;
+}
+
+cv::Mat gaussian_blur(cv::Mat in){
+    
+    int num_rows = in.rows;
+    int num_cols = in.cols;
+    int filter_rows = gaussian_kernel.rows;
+    int filter_cols = gaussian_kernel.cols;
     
     cv::Mat out = cv::Mat::zeros(num_rows, num_cols, in.type());
     
@@ -54,7 +78,7 @@ cv::Mat gaussian_blur(cv::Mat in, cv::Mat filter){
                     int col_idx = j + l - 2;
                     if(row_idx >= 0 && row_idx < num_rows){
                         if(col_idx >= 0 && col_idx < num_cols)
-                        sum += filter.at<uchar>(k, l) * in.at<uchar>(row_idx, col_idx);
+                        sum += gaussian_kernel.at<uchar>(k, l) * in.at<uchar>(row_idx, col_idx);
                     }
                 }
             }

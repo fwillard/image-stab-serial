@@ -87,11 +87,12 @@ static void optical_flow(cv::VideoCapture &capture, int frame_count) {
     capture >> old_frame;
     cvtColor(old_frame, old_gray, cv::COLOR_BGR2GRAY);
     
-    cv::Mat blurred = gaussian_blur(old_gray, gaussian_kernel);
-    cv::Mat combined;
-    cv::hconcat(old_gray, blurred, combined);
-    cv::imshow("", combined);
-    cv::waitKey(0);
+    auto blurred = construct_gaussian_pyramid(old_gray);
+    
+    for(auto img: blurred){
+        cv::imshow("", img);
+        cv::waitKey(0);
+    }
     
     std::vector<TransformParam> transforms;
     

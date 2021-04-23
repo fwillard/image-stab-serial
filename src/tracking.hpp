@@ -23,7 +23,8 @@ const cv::Mat gaussian_kernel = (cv::Mat_<uchar>(5,5) << 1,  4,  7,  4, 1,
                                                                         1,  4,  7,  4, 1);
 
 void lucas_kanade(cv::Mat, cv::Mat, std::vector<cv::Point2f>, std::vector<cv::Point2f> &);
-std::tuple<cv::Mat, cv::Mat, cv::Mat> construct_gaussian_pyramid(int levels = MAX_LEVEL);
-cv::Mat gaussian_blur(cv::Mat, cv::Mat);
+std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat, int levels = 3);
+cv::Mat gaussian_blur(cv::Mat);
+cv::Mat sub_sample(cv::Mat);
 //cv::Mat gaussian_kernel(int, int, double);
 #endif /* optical_flow_hpp */
