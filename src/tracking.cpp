@@ -44,7 +44,7 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
                         short dy1 = sobel_filter(f1, 1, row_idx, col_idx);
                         
                         short ix = (dx0 + dx1)/2;
-                        short iy = (dx0 + dx1)/2;
+                        short iy = (dy0 + dy1)/2;
                         short it = f1.at<short>(row_idx, col_idx) - f0.at<short>(row_idx, col_idx);
                     }
                 }
