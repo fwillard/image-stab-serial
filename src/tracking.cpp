@@ -59,7 +59,48 @@ cv::Mat sub_sample(cv::Mat in){
     
     return out;
 }
-
+short sobel_filter(cv::Mat in, int direction, cv::Point2f p){
+    int num_rows = in.rows;
+    int num_cols = in.cols;
+    
+    cv::Mat kernel;
+    switch (direction) {
+        case 0:
+            kernel = sobel_x_kernel;
+            break;
+        case 1:
+            kernel = sobel_y_kernel;
+            break;
+        default:
+            std::cerr << "Invalid direction for sobel filter: 0 for X, 1 for Y" << std::endl;
+            return;
+    }
+    int filter_rows = kernel.rows;
+    int filter_cols = kernel.cols;
+    
+    in.convertTo(in, CV_16S);
+    
+    cv::Mat out = cv::Mat::zeros(num_rows, num_cols, in.type());
+    
+    int x = (int)p.x;
+    int y = (int)p.y;
+    
+    short sum = 0;
+    
+    for(int k = 0; k < filter_rows; k++){
+        for(int l = 0; l < filter_cols; l++){
+            int row_idx = x + k - 1;
+            int col_idx = y + l - 1;
+            if(row_idx >= 0 && row_idx < num_rows){
+                if(col_idx >= 0 && col_idx < num_cols){
+                    sum += kernel.at<short>(k, l) * in.at<short>(row_idx, col_idx);
+                }
+            }
+        }
+    }
+    
+    return sum;
+}
 cv::Mat sobel_filter(cv::Mat in, int direction){
     int num_rows = in.rows;
     int num_cols = in.cols;

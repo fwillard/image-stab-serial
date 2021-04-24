@@ -34,6 +34,7 @@ void lucas_kanade(cv::Mat, cv::Mat, std::vector<cv::Point2f>, std::vector<cv::Po
 std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat, int levels = 3);
 cv::Mat convolve(cv::Mat, cv::Mat);
 cv::Mat sobel_filter(cv::Mat, int);
+short sobel_filter(cv::Mat, int, cv::Point2f);
 cv::Mat gaussian_blur(cv::Mat);
 cv::Mat sub_sample(cv::Mat);
 //cv::Mat gaussian_kernel(int, int, double);
