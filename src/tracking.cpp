@@ -33,11 +33,11 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
 
 std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat in, int levels){
     std::vector<cv::Mat> out;
-    cv::Mat temp, temp_old;
+    cv::Mat temp;
     temp = in;
     out.push_back(temp);
     for (int i = 0; i < levels - 1; i++) {
-        temp = gaussian_blur(temp);
+        temp = convolve(temp, gaussian_kernel);
         temp = sub_sample(temp);
         out.push_back(temp);
     }
@@ -60,25 +60,28 @@ cv::Mat sub_sample(cv::Mat in){
     return out;
 }
 
-cv::Mat gaussian_blur(cv::Mat in){
+cv::Mat convolve(cv::Mat in, cv::Mat kernel){
     
     int num_rows = in.rows;
     int num_cols = in.cols;
-    int filter_rows = gaussian_kernel.rows;
-    int filter_cols = gaussian_kernel.cols;
+    int filter_rows = kernel.rows;
+    int filter_cols = kernel.cols;
+    
+    int row_offset = filter_rows/2;
+    int col_offset = filter_rows/2;
     
     cv::Mat out = cv::Mat::zeros(num_rows, num_cols, in.type());
     
-    for(int i = 0; i < num_rows - 2; i++){
-        for(int j = 0; j < num_cols - 2; j++){
+    for(int i = 0; i < num_rows; i++){
+        for(int j = 0; j < num_cols; j++){
             double sum = 0.0;
             for(int k = 0; k < filter_rows; k++){
                 for(int l = 0; l < filter_cols; l++){
-                    int row_idx = i + k - 2;
-                    int col_idx = j + l - 2;
+                    int row_idx = i + k - row_offset;
+                    int col_idx = j + l - row_offset;
                     if(row_idx >= 0 && row_idx < num_rows){
                         if(col_idx >= 0 && col_idx < num_cols)
-                        sum += gaussian_kernel.at<uchar>(k, l) * in.at<uchar>(row_idx, col_idx);
+                        sum += kernel.at<uchar>(k, l) * in.at<uchar>(row_idx, col_idx);
                     }
                 }
             }
