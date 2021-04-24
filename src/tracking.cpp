@@ -37,7 +37,7 @@ std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat in, int levels){
     temp = in;
     out.push_back(temp);
     for (int i = 0; i < levels - 1; i++) {
-        temp = convolve(temp, gaussian_kernel);
+        temp = gaussian_blur(temp);
         temp = sub_sample(temp);
         out.push_back(temp);
     }
@@ -60,15 +60,52 @@ cv::Mat sub_sample(cv::Mat in){
     return out;
 }
 
-cv::Mat convolve(cv::Mat in, cv::Mat kernel){
-    
+cv::Mat sobel_filter(cv::Mat in, int direction){
     int num_rows = in.rows;
     int num_cols = in.cols;
+    cv::Mat kernel;
+    switch (direction) {
+        case 0:
+            kernel = sobel_x_kernel;
+            break;
+        case 1:
+            kernel = sobel_y_kernel;
+            break;
+        default:
+            std::cerr << "Invalid direction for sobel filter: 0 for X, 1 for Y" << std::endl;
+            return;
+    }
     int filter_rows = kernel.rows;
     int filter_cols = kernel.cols;
     
-    int row_offset = filter_rows/2;
-    int col_offset = filter_rows/2;
+    in.convertTo(in, CV_16S);
+    
+    cv::Mat out = cv::Mat::zeros(num_rows, num_cols, in.type());
+    
+    for(int i = 0; i < num_rows; i++){
+        for(int j = 0; j < num_cols; j++){
+            for(int k = 0; k < filter_rows; k++){
+                for(int l = 0; l < filter_cols; l++){
+                    int row_idx = i + k - 1;
+                    int col_idx = j + l - 1;
+                    if(row_idx >= 0 && row_idx < num_rows){
+                        if(col_idx >= 0 && col_idx < num_cols){
+                            out.at<short>(i,j) += kernel.at<short>(k, l) * in.at<short>(row_idx, col_idx);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return out;
+}
+
+cv::Mat gaussian_blur(cv::Mat in){
+    
+    int num_rows = in.rows;
+    int num_cols = in.cols;
+    int filter_rows = gaussian_kernel.rows;
+    int filter_cols = gaussian_kernel.cols;
     
     cv::Mat out = cv::Mat::zeros(num_rows, num_cols, in.type());
     
@@ -77,11 +114,11 @@ cv::Mat convolve(cv::Mat in, cv::Mat kernel){
             double sum = 0.0;
             for(int k = 0; k < filter_rows; k++){
                 for(int l = 0; l < filter_cols; l++){
-                    int row_idx = i + k - row_offset;
-                    int col_idx = j + l - row_offset;
+                    int row_idx = i + k - 1;
+                    int col_idx = j + l - 1;
                     if(row_idx >= 0 && row_idx < num_rows){
                         if(col_idx >= 0 && col_idx < num_cols)
-                        sum += kernel.at<uchar>(k, l) * in.at<uchar>(row_idx, col_idx);
+                        sum += gaussian_kernel.at<uchar>(k, l) * in.at<uchar>(row_idx, col_idx);
                     }
                 }
             }

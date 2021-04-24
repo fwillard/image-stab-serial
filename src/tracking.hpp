@@ -22,9 +22,18 @@ const cv::Mat gaussian_kernel = (cv::Mat_<uchar>(5,5) <<1,  4,  7,  4, 1,
                                                         4, 16, 26, 16, 4,
                                                         1,  4,  7,  4, 1);
 
+const cv::Mat sobel_x_kernel = (cv::Mat_<short>(3,3) << 1, 0, -1,
+                                                        2, 0, -2,
+                                                        1, 0, -1);
+
+const cv::Mat sobel_y_kernel = (cv::Mat_<short>(3,3) <<  1,  2,  1,
+                                                         0,  0,  0,
+                                                        -1, -2, -1);
+
 void lucas_kanade(cv::Mat, cv::Mat, std::vector<cv::Point2f>, std::vector<cv::Point2f> &);
 std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat, int levels = 3);
 cv::Mat convolve(cv::Mat, cv::Mat);
+cv::Mat sobel_filter(cv::Mat, int);
 cv::Mat gaussian_blur(cv::Mat);
 cv::Mat sub_sample(cv::Mat);
 //cv::Mat gaussian_kernel(int, int, double);
