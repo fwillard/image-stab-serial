@@ -22,13 +22,35 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
     int num_rows = f0.rows;
     int num_cols = f0.cols;
     
-    cv::Mat Ix = cv::Mat::zeros(num_rows, num_cols, f0.type());
-    cv::Mat Iy = cv::Mat::zeros(num_rows, num_cols, f0.type());
+    int row_offset = floor(WIN_SIZE.height/2);
+    int col_offset = floor(WIN_SIZE.width/2);
+    
+    f0.convertTo(f0, CV_16S);
+    f1.convertTo(f0, CV_16S);
     
     for(auto point : p0){
-        
+        for(int k = 0; k < WIN_SIZE.height; k++){
+            for(int l = 0; l < WIN_SIZE.width; l++){
+                
+                int row_idx = (int)point.x + k - row_offset;
+                int col_idx = (int)point.y + l - col_offset;
+                
+                if(row_idx >= 0 && row_idx < num_rows){
+                    if(col_idx >= 0 && col_idx < num_cols){
+                        short dx0 = sobel_filter(f0, 0, row_idx, col_idx);
+                        short dx1 = sobel_filter(f1, 0, row_idx, col_idx);
+                        
+                        short dy0 = sobel_filter(f0, 1, row_idx, col_idx);
+                        short dy1 = sobel_filter(f1, 1, row_idx, col_idx);
+                        
+                        short ix = (dx0 + dx1)/2;
+                        short iy = (dx0 + dx1)/2;
+                        short it = f1.at<short>(row_idx, col_idx) - f0.at<short>(row_idx, col_idx);
+                    }
+                }
+            }
+        }
     }
-    
 }
 
 std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat in, int levels){
@@ -59,7 +81,7 @@ cv::Mat sub_sample(cv::Mat in){
     
     return out;
 }
-short sobel_filter(cv::Mat in, int direction, cv::Point2f p){
+short sobel_filter(cv::Mat in, int direction, int x, int y){
     int num_rows = in.rows;
     int num_cols = in.cols;
     
@@ -81,10 +103,7 @@ short sobel_filter(cv::Mat in, int direction, cv::Point2f p){
     in.convertTo(in, CV_16S);
     
     cv::Mat out = cv::Mat::zeros(num_rows, num_cols, in.type());
-    
-    int x = (int)p.x;
-    int y = (int)p.y;
-    
+
     short sum = 0;
     
     for(int k = 0; k < filter_rows; k++){
