@@ -28,7 +28,11 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
     f0.convertTo(f0, CV_16S);
     f1.convertTo(f0, CV_16S);
     
+    
+    
     for(auto point : p0){
+        cv::Mat A = cv::Mat::zeros(2, 2, CV_32F);
+        cv::Mat B = cv::Mat::zeros(2, 1, CV_32F);
         for(int k = 0; k < WIN_SIZE.height; k++){
             for(int l = 0; l < WIN_SIZE.width; l++){
                 
@@ -43,14 +47,39 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
                         short dy0 = sobel_filter(f0, 1, row_idx, col_idx);
                         short dy1 = sobel_filter(f1, 1, row_idx, col_idx);
                         
-                        short ix = (dx0 + dx1)/2;
-                        short iy = (dy0 + dy1)/2;
-                        short it = f1.at<short>(row_idx, col_idx) - f0.at<short>(row_idx, col_idx);
+                        float ix = (float)(dx0 + dx1)/2;
+                        float iy = (float)(dy0 + dy1)/2;
+                        float it = (float) (f1.at<short>(row_idx, col_idx) - f0.at<short>(row_idx, col_idx));
+                        
+                        A.at<float>(0,0) += ix * ix;
+                        A.at<float>(0,1) += ix * iy;
+                        A.at<float>(1,0) += iy * ix;
+                        A.at<float>(1,1) += iy * iy;
+                        
+                        B.at<float>(0,0) -= ix * it;
+                        B.at<float>(1,0) -= iy * it;
                     }
                 }
             }
         }
     }
+}
+
+void invert(cv::Mat &in){
+    assert(in.rows == 2);
+    assert(in.cols == 2);
+    
+    float a = in.at<float>(0,0);
+    float b = in.at<float>(0,1);
+    float c = in.at<float>(1,0);
+    float d = in.at<float>(1,1);
+    
+    float det = 1/(a*d - b*c);
+    
+    in.at<float>(0,0) = d * det;
+    in.at<float>(0,1) = -b * det;
+    in.at<float>(1,0) = -c * det;
+    in.at<float>(1,1) = a * det;
 }
 
 std::vector<cv::Mat> construct_gaussian_pyramid(cv::Mat in, int levels){
