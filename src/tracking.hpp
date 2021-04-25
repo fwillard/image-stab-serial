@@ -37,5 +37,6 @@ cv::Mat sobel_filter(cv::Mat, int);
 short sobel_filter(cv::Mat, int, int, int);
 cv::Mat gaussian_blur(cv::Mat);
 cv::Mat sub_sample(cv::Mat);
+void invert(cv::Mat &);
 //cv::Mat gaussian_kernel(int, int, double);
 #endif /* optical_flow_hpp */

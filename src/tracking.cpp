@@ -28,8 +28,6 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
     f0.convertTo(f0, CV_16S);
     f1.convertTo(f0, CV_16S);
     
-    
-    
     for(auto point : p0){
         cv::Mat A = cv::Mat::zeros(2, 2, CV_32F);
         cv::Mat B = cv::Mat::zeros(2, 1, CV_32F);
@@ -62,6 +60,11 @@ void lucas_kanade(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vect
                 }
             }
         }
+        invert(A);
+        float Vx = A.at<float>(0,0) * B.at<float>(0,0) + A.at<float>(0,1) * B.at<float>(1,0);
+        float Vy = A.at<float>(1,0) * B.at<float>(0,1) + A.at<float>(1,1) * B.at<float>(1,0);
+        
+        p1.push_back(cv::Point2f(point.x + Vx, point.y + Vy));
     }
 }
 
