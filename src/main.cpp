@@ -67,10 +67,10 @@ int main(int argc, char **argv)
         vector<uchar> status;
         vector<float> err;
         TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
-//        calcOpticalFlowPyrLK(old_gray, frame_gray, p0, p1, status, err, Size(15,15), 2, criteria);
+        calcOpticalFlowPyrLK(old_gray, frame_gray, p0, p1, status, err, Size(15,15), 2, criteria);
         
         auto start = std::chrono::high_resolution_clock::now();
-        pyr_LK(old_gray, frame_gray, p0, p1);
+//        pyr_LK(old_gray, frame_gray, p0, p1);
         auto stop = std::chrono::high_resolution_clock::now();
     
         auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

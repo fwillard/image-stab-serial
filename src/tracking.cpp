@@ -104,6 +104,14 @@ void pyr_LK(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vector<cv:
     int max_iterations = 20;
     float threshold = 0.03;
     bool first = true;
+    
+    std::vector<cv::Mat> Ix_list, Iy_list;
+    
+    for(int l = 0; l < num_levels; l++){
+        Ix_list.push_back(sobel_filter(pyramid_0[l], 0));
+        Iy_list.push_back(sobel_filter(pyramid_0[l], 1));
+    }
+    
     for(auto point: p0){
         cv::Mat g = cv::Mat::zeros(2, 1, CV_32FC1);
         cv::Mat d = cv::Mat::zeros(2, 1, CV_32FC1);
@@ -114,18 +122,18 @@ void pyr_LK(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vector<cv:
             u.x = point.x / pow(2, l);
             u.y = point.y / pow(2, l);
             
-            auto Ix = sobel_filter(pyramid_0[l], 0);
-            auto Iy = sobel_filter(pyramid_0[l], 1);
+
+                first = false;
 //            std::cout << Ix << std::endl;
 //            std::cout << Iy << std::endl;
             cv::Mat A = cv::Mat::zeros(2, 2, CV_32FC1);
             
             for(float x = u.x - w; x < u.x + w; x++){
                 for(float y = u.y - w; y < u.y + w; y++){
-                    A.at<float>(0,0) += bilinear(Ix, x, y) * bilinear(Ix, x, y);
-                    A.at<float>(0,1) += bilinear(Ix, x, y) * bilinear(Iy, x, y);
-                    A.at<float>(1,0) += bilinear(Ix, x, y) * bilinear(Iy, x, y);
-                    A.at<float>(1,1) += bilinear(Iy, x, y) * bilinear(Iy, x, y);
+                    A.at<float>(0,0) += bilinear(Ix_list[l], x, y) * bilinear(Ix_list[l], x, y);
+                    A.at<float>(0,1) += bilinear(Ix_list[l], x, y) * bilinear(Iy_list[l], x, y);
+                    A.at<float>(1,0) += bilinear(Ix_list[l], x, y) * bilinear(Iy_list[l], x, y);
+                    A.at<float>(1,1) += bilinear(Iy_list[l], x, y) * bilinear(Iy_list[l], x, y);
                 }
             }
 //            std::cout << A << std::endl;
@@ -145,8 +153,8 @@ void pyr_LK(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vector<cv:
                 
                 for(float x = u.x - w; x < u.x + w; x++){
                     for(float y = u.y - w; y < u.y + w; y++){
-                        B.at<float>(0,0) += bilinear(Ix, x, y) * bilinear(It, x, y);
-                        B.at<float>(1,0) += bilinear(Iy, x, y) * bilinear(It, x, y);
+                        B.at<float>(0,0) += bilinear(Ix_list[l], x, y) * bilinear(It, x, y);
+                        B.at<float>(1,0) += bilinear(Iy_list[l], x, y) * bilinear(It, x, y);
                     }
                 }
                 cv::Mat A_inv = invert(A);
@@ -164,6 +172,8 @@ void pyr_LK(cv::Mat f0, cv::Mat f1, std::vector<cv::Point2f> p0, std::vector<cv:
             
             g.at<float>(0,0) = 2*(g.at<float>(0,0) + d.at<float>(0,0));
             g.at<float>(1,0) = 2*(g.at<float>(1,0) + d.at<float>(1,0));
+            
+            first = true;
         }
         
         cv::Point2f p;
